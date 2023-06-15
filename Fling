@@ -1,0 +1,225 @@
+local Flinging = false
+local Highlight = Instance.new("Highlight")
+local Root = game.Players.LocalPlayer.Character.HumanoidRootPart
+local Version = "v1.0.3"
+print(Version)
+
+Highlight.FillColor = Color3.fromRGB(34, 77, 153)
+Highlight.OutlineColor = Color3.fromRGB(55, 127, 244)
+
+getgenv().AntiVoid = true
+getgenv().ShowReal = true
+getgenv().Fling = true
+getgenv().AutoReclaim = true
+getgenv().AntiSleep = true
+getgenv().EnableSpin = true
+Root.Transparency = 0
+
+Highlight.Parent = Root
+Highlight.Adornee = Root
+
+local PASettings = {
+    WalkSpeed = 16,
+    JumpPower = 125,
+    ScriptCreator = "Anonymous Creator",
+    HatsBeingAnimated = {},
+    Teleportation = {
+        Enabled = false,
+        Key = "t"
+    },
+    Animations = {
+        Attacks = {
+            OneKeyAttack = {}
+        }
+    }
+}
+
+getgenv().Methods = {}
+
+local Methods = getgenv().Methods
+local Mouse = game:GetService("Players").LocalPlayer:GetMouse()
+local Sprinting = false
+
+local Attacking = false
+
+local Player = game:GetService("Players").LocalPlayer
+local Character = Player.Character
+
+local Humanoid = Character:FindFirstChildOfClass("Humanoid")
+Humanoid.WalkSpeed = PASettings.WalkSpeed
+
+task.spawn(function()
+    while task.wait() do
+        if not Flinging then
+            Root.Position = Character.Torso.Position - Vector3.new(0, 5, 0)
+        end
+    end
+end)
+
+function Methods:SetWalkSpeed(Value)
+    PASettings.WalkSpeed = Value
+    Humanoid.WalkSpeed = Value
+end
+
+function Methods:PlaySound(SoundID, Looped)
+    local Sound = Instance.new("Sound", Character.Torso)
+    Sound.SoundId = "rbxassetid://"..SoundID
+    Sound.Volume = 5
+    if Looped then
+        Sound.Looped = true
+    else
+        Sound.Looped = false
+    end
+    Sound:Play()
+end
+
+function Methods:Chat(Message)
+    local args = {
+        [1] = Message,
+        [2] = "All"
+    }
+    game:GetService("ReplicatedStorage").DefaultChatSystemChatEvents.SayMessageRequest:FireServer(unpack(args))
+end
+
+local FakeRoot = getgenv().CloneRig.HumanoidRootPart
+
+function Methods:FreezeChar()
+    FakeRoot.Anchored = true
+end
+
+function Methods:ThawChar()
+    FakeRoot.Anchored = false
+end
+
+function Methods:NoYield(fn)
+    task.spawn(fn)
+end
+
+function Methods:ApplyVelocityFoward(Distance)
+    FakeRoot.Velocity = FakeRoot.CFrame.LookVector.Unit * Distance * 25
+end
+
+function Methods:ApplyVelocityUpward(Distance)
+    FakeRoot.Velocity = Vector3.new(FakeRoot.Velocity.X, Distance, FakeRoot.Velocity.Z)
+end
+
+function Methods:LookAtMouse()
+    Character.HumanoidRootPart.CFrame = CFrame.lookAt(Character.HumanoidRootPart.Position, Vector3.new(Mouse.Hit.p.X, Character.HumanoidRootPart.Position.Y, Mouse.Hit.p.Z))
+end
+
+function Methods:SetWalkAnimation(AnimationID, FrameSpeed)
+    PASettings.Animations.WalkAnimation.AnimationID = AnimationID
+    PASettings.Animations.WalkAnimation.TweenSpeed = FrameSpeed
+end
+
+function Methods:SetJumpAnimation(AnimationID, FrameSpeed)
+    PASettings.Animations.JumpAnimation.AnimationID = AnimationID
+    PASettings.Animations.JumpAnimation.TweenSpeed = FrameSpeed
+end
+
+function Methods:SetFallAnimation(AnimationID, FrameSpeed)
+    PASettings.Animations.FallAnimation.AnimationID = AnimationID
+    PASettings.Animations.FallAnimation.TweenSpeed = FrameSpeed
+end
+
+function Methods:SetIdleAnimation(AnimationID, FrameSpeed)
+    PASettings.Animations.IdleAnimation.AnimationID = AnimationID
+    PASettings.Animations.IdleAnimation.TweenSpeed = FrameSpeed
+end
+
+function Methods:SetAttackAnimation(AnimationID, FrameSpeed, AnimationName)
+    PASettings.Animations.Attacks[AnimationName] = {
+        AnimationID = AnimationID,
+        TweenSpeed = FrameSpeed
+    }
+end
+
+function Methods:AnimateHats()
+    for _, Hat in pairs(Character:GetChildren()) do
+        if Hat:IsA("Accessory") then
+            table.insert(PASettings.HatsBeingAnimated, Hat)
+            local AccessoryWeld = Instance.new("Weld")
+            AccessoryWeld.Parent = Hat
+            AccessoryWeld.Part0 = Hat
+            AccessoryWeld.Part1 = Character.HumanoidRootPart
+        end
+    end
+end
+
+local function LoadIntro()
+    local TimeElapsed = 0
+    while TimeElapsed < 2.5 do
+        task.wait()
+        TimeElapsed = TimeElapsed + task.delay()
+        Root.CFrame = Root.CFrame:Lerp(Root.CFrame * CFrame.Angles(0, math.rad(180), 0), 0.05)
+    end
+end
+
+game:GetService("UserInputService").InputBegan:Connect(function(Input, GameProcessed)
+    if not GameProcessed then
+        if Input.KeyCode == Enum.KeyCode.LeftShift then
+            Sprinting = true
+            if PASettings.Animations.SprintAnimation.AnimationID then
+                Character.Humanoid:LoadAnimation(PASettings.Animations.SprintAnimation):Play()
+            end
+        elseif Input.KeyCode == Enum.KeyCode.P then
+            if not Attacking then
+                Attacking = true
+                Character.Humanoid:LoadAnimation(PASettings.Animations.Attacks.OneKeyAttack.AnimationID):Play()
+                wait(1)
+                Attacking = false
+            end
+        end
+    end
+end)
+
+game:GetService("UserInputService").InputEnded:Connect(function(Input, GameProcessed)
+    if not GameProcessed then
+        if Input.KeyCode == Enum.KeyCode.LeftShift then
+            Sprinting = false
+            if PASettings.Animations.SprintAnimation.AnimationID then
+                Character.Humanoid:LoadAnimation(PASettings.Animations.SprintAnimation):Stop()
+            end
+        end
+    end
+end)
+
+task.spawn(function()
+    while task.wait() do
+        if Sprinting and PASettings.Animations.SprintAnimation.AnimationID then
+            Character.Humanoid.WalkSpeed = PASettings.WalkSpeed + PASettings.Animations.SprintAnimation.TweenSpeed
+        else
+            Character.Humanoid.WalkSpeed = PASettings.WalkSpeed
+        end
+    end
+end)
+
+LoadIntro()
+
+while task.wait() do
+    local CurrentAnimation = "Idle"
+    if Character.Humanoid.FloorMaterial == Enum.Material.Air then
+        CurrentAnimation = "Fall"
+        if PASettings.Animations.FallAnimation.AnimationID then
+            Character.Humanoid:LoadAnimation(PASettings.Animations.FallAnimation):Play()
+        end
+    elseif Character.Humanoid:GetState() == Enum.HumanoidStateType.Running then
+        CurrentAnimation = "Walk"
+        if PASettings.Animations.WalkAnimation.AnimationID then
+            Character.Humanoid:LoadAnimation(PASettings.Animations.WalkAnimation):Play()
+        end
+    elseif Character.Humanoid:GetState() == Enum.HumanoidStateType.Jumping then
+        CurrentAnimation = "Jump"
+        if PASettings.Animations.JumpAnimation.AnimationID then
+            Character.Humanoid:LoadAnimation(PASettings.Animations.JumpAnimation):Play()
+        end
+    end
+
+    if not Attacking then
+        if CurrentAnimation ~= "Idle" then
+            Character.Humanoid:LoadAnimation(PASettings.Animations.IdleAnimation):Stop()
+        elseif not Character.Humanoid:IsPlayingAnimation(PASettings.Animations.IdleAnimation) then
+            Character.Humanoid:LoadAnimation(PASettings.Animations.IdleAnimation):Play()
+        end
+    end
+end
